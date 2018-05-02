@@ -1,11 +1,12 @@
 'use strict'
 
-var bcrypt = require('bcrypt-nodejs')
-var User = require('../models/user')
+var bcrypt = require('bcrypt-nodejs');
+var User = require('../models/user');
+var jwt = require('../services/jwt');
 
 function pruebas(req, resp){
     resp.status(200).send({
-        message: 'Prueba de funcion'
+        message: 'Probando una acción del controlador de usuarios del api resto con Node y MongoDB'
     })
 }
 
@@ -16,7 +17,7 @@ function saveUser(req, res){
     user.name = params.name;
     user.surname = params.surname;
     user.email = params.email;
-    user.role = 'ROLE_USER';
+    user.role = 'ROLE_ADMIN';
     user.image = params.image
     
     if(params.password){
@@ -32,7 +33,7 @@ function saveUser(req, res){
                         if(!userStored){
                             res.status(404).send({message: 'no se ha podido guardar el usuario'})
                         }else{
-                            res.status(200).send({user: userStored})
+                            res.status(200).send({user: userStored});
                         }
                     }
                 });
@@ -46,8 +47,44 @@ function saveUser(req, res){
 
 }
 
+function loginUser(req, res){
+    var params = req.body;
+
+    var email = params.email;
+    var password = params.password;
+
+    User.findOne({email: email.toLowerCase()}, (err, user) => {
+        if(err){
+            res.status(500).send({message :'error en la petición'});
+        }else{
+            if(!user){
+                res.status(404).send({message: 'El usuario no existe'})
+            }else{
+                //Comprueba la contraseña
+                bcrypt.compare(password, user.password, function(err, check){
+                    if(check){
+                        //devolver los datos del user logeado
+                        if(params.gethash){
+                            //devolver un token jwt
+                            res.status(200).send({
+                                token: jwt.createToken(user)
+                            });
+                        }else{
+                            res.status(200).send({user});
+                        }
+                    }else{
+                        res.status(404).send({message: 'El usuario no pudo loguearse'})
+                    }
+                });
+            }
+        }
+    
+    })
+}
+
 module.exports = {
     pruebas,
-    saveUser
+    saveUser,
+    loginUser
 }; 
 
